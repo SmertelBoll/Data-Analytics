@@ -343,63 +343,36 @@ rm(countByGenderAgeGroup, riskOfMortality, calculatePercent, Percent, ROM, ROM_i
 ```
 
 
-Ризик смертності в залежності від раси і статі
-(!ПОТРІБНА ДОРОБИТИ КРАСИВО!)
+Ризик смертності в залежності від раси
 ```{r}
-# Кількість кожної групи
-countByGenderAgeGroup <- df %>% group_by(Gender, Race) %>% summarise(totalCount=n(),
+countByRace <- df %>% group_by(Race) %>% summarise(totalCount=n(),
             .groups = 'drop')
 
 # Кількість кожної групи в залежності від тяжкості
-riskOfMortality <- df %>% group_by(Gender, Race, APR.Risk.of.Mortality) %>% summarise(totalCount=n(),
+riskOfMortality <- df %>% group_by (Race, APR.Risk.of.Mortality) %>% summarise(totalCount=n(),
             .groups = 'drop')
 
-# Функція, яка повертає процент від кількості
 calculatePercent <- function(x, output){
-  gender <- x[1]
-  agegroup <- x[2]
-  count <- countByGenderAgeGroup[countByGenderAgeGroup$Gender==gender &
-                              countByGenderAgeGroup$Race==agegroup,]$totalCount
-  return(as.numeric(x[4])/count*100)
+  race <- x[1]
+  count <- countByRace[countByRace$Race==race,]$totalCount
+  return(as.numeric(x[3])/count*100)
 }
 
 Percent <- apply(riskOfMortality, 1, calculatePercent)
 riskOfMortality <- cbind(riskOfMortality,Percent)
 
+new_order <- c("Minor", "Moderate", "Major", "Extreme")
+riskOfMortality$APR.Risk.of.Mortality <- factor(riskOfMortality$APR.Risk.of.Mortality, levels = new_order)
+riskOfMortality <- riskOfMortality[order(riskOfMortality$APR.Risk.of.Mortality), ]
 
-# Об'єднаємо дві колонки в одну
-riskOfMortality$GenderRisk = paste(riskOfMortality$Gender, riskOfMortality$APR.Risk.of.Mortality)
+ggplot(riskOfMortality, aes(x=APR.Risk.of.Mortality, y=Percent,
+                            fill=APR.Risk.of.Mortality)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~ Race, ncol = 4) +
+  scale_fill_manual(values=c("#F6BDC0", "#F1959B", "#EA4C46", "#DC1C13")) +
+  xlab("Risk") + labs(fill = "Risk")
 
-# Видалення зайвих колонок
-riskOfMortality <- riskOfMortality[,!names(riskOfMortality) %in% 
-      c("Gender", "APR.Risk.of.Mortality", "totalCount")]
-
-# Розбиваємо велику таблицю на 8 менших
-ROM <- riskOfMortality %>% group_split(GenderRisk)
-
-# Графік
-riskPlot <- ggplot()
-for (i in 1:length(ROM)) {   # i in 1:8
-  ROM_i = ROM[[i]]
-  riskPlot <- riskPlot + 
-    geom_line(group=1, ROM_i, mapping=aes(x=Race, y=Percent, colour=GenderRisk), size=1) +
-    geom_point(group=1, ROM_i, mapping=aes(x=Race, y=Percent, colour=GenderRisk), size=3)
-}
-
-colors = c("M Minor"    = "#90e0ef", "F Minor"    = "#ffcccc", 
-           "M Moderate" = "#00b4d8", "F Moderate" = "#ff9999", 
-           "M Major"    = "#0077b6", "F Major"    = "#ff3333", 
-           "M Extreme"  = "#03045e", "F Extreme"  = "darkred")
-
-riskPlot <- riskPlot + 
-  scale_color_manual(name = "Gender Risk", values = colors) +
-  labs(x = "Race")
-
-print(riskPlot)
-
-rm(countByGenderAgeGroup, riskOfMortality, calculatePercent, Percent, ROM, ROM_i, 
-   riskPlot, colors, i)
-
+rm(countByRace, riskOfMortality, new_order, Percent)
 ```
 
 
