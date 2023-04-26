@@ -132,6 +132,13 @@ df$Total.Costs <- as.numeric(gsub("\\$", "", df$Total.Costs))
 
 ```
 
+Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
+
+```{r}
+df$Birth.Weight <- ifelse(df$Birth.Weight == 0, NA, df$Birth.Weight)
+```
+
+
 
 Переглянемо детальніше інформацію про колонки
 ```{r}
@@ -322,7 +329,7 @@ riskPlot <- ggplot()
 for (i in 1:length(ROM)) {   # i in 1:8
   ROM_i = ROM[[i]]
   riskPlot <- riskPlot + 
-    geom_line(group=1, ROM_i, mapping=aes(x=Age.Group, y=Percent, colour=GenderRisk), size=1) +
+    geom_line(group=1, ROM_i, mapping=aes(x=Age.Group, y=Percent, colour=GenderRisk)) +
     geom_point(group=1, ROM_i, mapping=aes(x=Age.Group, y=Percent, colour=GenderRisk), size=3)
 }
 
@@ -401,9 +408,10 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#9999ff", "#000066"))
 barplot(h$counts, log = "y", col = gradient(length(h$counts)),
-        xlab = "Ціна у 100 000$", ylab = "Кількість", main = "Total charges") 
+        xlab = "Ціна у 100 000$", ylab = "Кількість", main = "Total charges", 
+        cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5) 
 axis(side = 1, at = seq(from = 0.1, by = 1.2, along.with = h$breaks), 
-     labels = round(h$breaks/100000, 1))
+     labels = round(h$breaks/100000, 1), cex.axis=1.7)
 
 # Total.Costs
 # Обчислимо значення
@@ -415,9 +423,10 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#ff9999", "#660000"))
 barplot(h$counts, log = "y", col = gradient(length(h$counts)),
-        xlab = "Ціна у 100 000$", ylab = "Кількість", main = "Total costs")
+        xlab = "Ціна у 100 000$", ylab = "Кількість", main = "Total costs", 
+        cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
 axis(side = 1, at = seq(from = 0.1, by = 1.2, along.with = h$breaks), 
-     labels = round(h$breaks/100000, 1))
+     labels = round(h$breaks/100000, 1), cex.axis=1.7)
 
 rm(x, h, gradient)
 ```
@@ -425,20 +434,10 @@ rm(x, h, gradient)
 
 Гістограми цін з логарифмічним значенням
 ```{r}
-# За формулою Стерджеса обчислимо потрібне значення стовпців
-# n <- 1 + floor(log2(nrow(df)))
-
-# Чомусь не працює
-# --------------------
-# # створимо нове полотно
-# plot.new()
-# # встановимо параметри графіків
-# par(mfrow = c(1, 2))
-# --------------------
 
 # Total.Charges
 # Обчислимо значення
-x <- log2(df$Total.Charges)
+x <- log(df$Total.Charges, base = exp(1))
 h <- hist(x, plot = FALSE)
 h$counts[h$counts <= 0] <- 1e-1
 # h
@@ -446,13 +445,14 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#9999ff", "#000066"))
 barplot(h$counts, col = gradient(length(h$counts)),
-        xlab = "log2(ціна)", ylab = "Кількість", main = "Total charges") 
+        xlab = "ln(ціна)", ylab = "Кількість", main = "Загальна ціна",
+        cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5) 
 axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), 
-     labels = round(seq(min(x), max(x), length = length(h$breaks)), 1))
+     labels = h$breaks, cex.axis=2)
 
 # Total.Costs
 # Обчислимо значення
-x <- log2(df$Total.Costs)
+x <- log(df$Total.Costs, base = exp(1))
 h <- hist(x, plot = FALSE)
 h$counts[h$counts <= 0] <- 1e-1
 # h
@@ -460,16 +460,33 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#ff9999", "#660000"))
 barplot(h$counts, col = gradient(length(h$counts)),
-        xlab = "log2(ціна)", ylab = "Кількість", main = "Total costs")
+        xlab = "log2(ціна)", ylab = "Кількість", main = "Загальна собівартість",
+        cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5)
 axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)),
-     labels = round(seq(0, max(x), length = length(h$breaks)), 1))
+     labels = h$breaks, cex.axis=2)
 
-rm(x, h, gradient)
+#rm(x, h, gradient)
 ```
 
+```{r}
+# --------------------
 
 
+# Length.of.Stay
+# Обчислимо значення
+x <- df$Length.of.Stay
+h <- hist(x, plot = FALSE)
+h$counts[h$counts <= 0] <- 1e-1
+# h
 
+# Будуємо графік
+gradient <- colorRampPalette(c("#FCDE9C", "#FFA552", "#BA5624"))
+barplot(h$counts, col = gradient(length(h$counts)),
+        xlab = "Дні", log = 'y', ylab = "Кількість випадків", main = "Тривалість перебування",
+        cex.lab=1.5, cex.axis=1.5, cex.main=3, cex.sub=1.5)
+axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), labels=h$breaks, cex.axis=1.7)
+# rm(x, h, gradient)
+```
 
 
 
