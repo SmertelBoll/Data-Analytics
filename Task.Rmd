@@ -24,6 +24,10 @@ library(reshape2)
 # Тема для графіків
 theme_set(theme_minimal())
 
+label_size = 15     # axis labels
+subTitle_size = 20  # subtitle and axis title
+title_size = 25     # main title
+
 ```
 
 
@@ -145,6 +149,7 @@ df$Birth.Weight <- ifelse(df$Birth.Weight == 0, NA, df$Birth.Weight)
 summary(df)
 ```
 
+
 Знову переглянемо характеристики вже очищеного датасету
 ```{r}
 str(df, give.attr = FALSE)
@@ -245,8 +250,8 @@ plotStayTimeGender <- ggplot(stayTimeGender,
   scale_fill_brewer(palette=8) + # кольори
   theme_bw() + # без фона
   theme(legend.position = "none", 
-        axis.text = element_text(size=13),
-        axis.title = element_text(size=15))
+        axis.text = element_text(size=label_size),
+        axis.title = element_text(size=subTitle_size))
 
 # ВІКОВА ГРУПА
 stayTimeAgeGroup <- df %>% group_by(Age.Group) %>% summarise_at(vars(Length.of.Stay), 
@@ -258,9 +263,10 @@ plotStayTimeAgeGroup <- ggplot(stayTimeAgeGroup,
   ylab("stay time") + xlab("age group") +
   scale_fill_brewer(palette=1) +
   theme_bw() +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
   theme(legend.position = "none", 
-        axis.text = element_text(size=13),
-        axis.title = element_text(size=15))
+        axis.text = element_text(size=label_size),
+        axis.title = element_text(size=subTitle_size))
 
 # РАСА
 stayTimeRace <- df %>% group_by(Race) %>% summarise_at(vars(Length.of.Stay), 
@@ -274,11 +280,11 @@ plotStayTimeRace <- ggplot(stayTimeRace,
   theme_bw() +
   scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
   theme(legend.position = "none", 
-        axis.text = element_text(size=13),
-        axis.title = element_text(size=15))
+        axis.text = element_text(size=label_size),
+        axis.title = element_text(size=subTitle_size))
 
 
-title <- ggdraw() + draw_label("Середність тривалість перебування в лікарні", fontface='bold', size = 25)
+title <- ggdraw() + draw_label("Середність тривалість перебування в лікарні", fontface='bold', size = title_size)
 
 p <- plot_grid(plotStayTimeGender, plotStayTimeAgeGroup, plotStayTimeRace,
           ncol = 3, nrow = 1)
@@ -340,7 +346,9 @@ colors = c("M Minor"    = "#90e0ef", "F Minor"    = "#ffcccc",
 
 riskPlot <- riskPlot + 
   scale_color_manual(name = "Gender Risk", values = colors) +
-  labs(x = "Age group")
+  labs(x = "Age group") +
+  theme(axis.text = element_text(size=label_size),
+        axis.title = element_text(size=subTitle_size))
 
 print(riskPlot)
 
@@ -377,7 +385,13 @@ ggplot(riskOfMortality, aes(x=APR.Risk.of.Mortality, y=Percent,
   geom_bar(stat="identity", position="dodge") +
   facet_wrap(~ Race, ncol = 4) +
   scale_fill_manual(values=c("#F6BDC0", "#F1959B", "#EA4C46", "#DC1C13")) +
-  xlab("Risk") + labs(fill = "Risk")
+  xlab("Risk") + labs(fill = "Risk") +
+  # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  theme(axis.text = element_text(size=label_size),
+        axis.title = element_text(size=subTitle_size),
+        strip.text = element_text(size = subTitle_size),
+        legend.text = element_text(size = label_size),
+        legend.title = element_text(size = subTitle_size))
 
 rm(countByRace, riskOfMortality, new_order, Percent)
 ```
