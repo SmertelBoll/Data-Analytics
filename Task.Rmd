@@ -6,7 +6,9 @@
 #install.packages("ggplot2") # для візуалізації
 # install.packages("cowplot") # для об'єднання графіків в один
 # install.packages("reshape2") # для форматування таблиць
+# install.packages("GGally") # каралелограма
 ```
+
 
 Підключаємо бібліотеки
 ```{r}
@@ -15,6 +17,8 @@ library(tidyr)
 library(ggplot2)
 library(cowplot)
 library(reshape2)
+library(GGally)
+library(boot)
 
 ```
 
@@ -136,12 +140,11 @@ df$Total.Costs <- as.numeric(gsub("\\$", "", df$Total.Costs))
 
 ```
 
-Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
 
+Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
 ```{r}
 df$Birth.Weight <- ifelse(df$Birth.Weight == 0, NA, df$Birth.Weight)
 ```
-
 
 
 Переглянемо детальніше інформацію про колонки
@@ -284,7 +287,7 @@ plotStayTimeRace <- ggplot(stayTimeRace,
         axis.title = element_text(size=subTitle_size))
 
 
-title <- ggdraw() + draw_label("Середня тривалість перебування в лікарні", fontface='bold', size = title_size)
+title <- ggdraw() + draw_label("Середність тривалість перебування в лікарні", fontface='bold', size = title_size)
 
 p <- plot_grid(plotStayTimeGender, plotStayTimeAgeGroup, plotStayTimeRace,
           ncol = 3, nrow = 1)
@@ -423,7 +426,7 @@ h$counts[h$counts <= 0] <- 1e-1
 gradient <- colorRampPalette(c("#9999ff", "#000066"))
 barplot(h$counts, log = "y", col = gradient(length(h$counts)),
         xlab = "Ціна у 100 000$", ylab = "Кількість  (log шкала)", main = "Total charges", 
-        cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5) 
+        cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5) 
 axis(side = 1, at = seq(from = 0.1, by = 1.2, along.with = h$breaks), 
      labels = round(h$breaks/100000, 1), cex.axis=1.7)
 
@@ -438,7 +441,7 @@ h$counts[h$counts <= 0] <- 1e-1
 gradient <- colorRampPalette(c("#ff9999", "#660000"))
 barplot(h$counts, log = "y", col = gradient(length(h$counts)),
         xlab = "Ціна у 100 000$", ylab = "Кількість  (log шкала)", main = "Total costs", 
-        cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5)
+        cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
 axis(side = 1, at = seq(from = 0.1, by = 1.2, along.with = h$breaks), 
      labels = round(h$breaks/100000, 1), cex.axis=1.7)
 
@@ -459,7 +462,7 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#9999ff", "#000066"))
 barplot(h$counts, col = gradient(length(h$counts)),
-        xlab = "ln(ціна)", ylab = "Кількість", main = "Total charges",
+        xlab = "ln(ціна)", ylab = "Кількість", main = "Загальна ціна",
         cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5) 
 axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), 
      labels = h$breaks, cex.axis=2)
@@ -474,7 +477,7 @@ h$counts[h$counts <= 0] <- 1e-1
 # Будуємо графік
 gradient <- colorRampPalette(c("#ff9999", "#660000"))
 barplot(h$counts, col = gradient(length(h$counts)),
-        xlab = "ln(ціна)", ylab = "Кількість", main = "Total costs",
+        xlab = "ln(ціна)", ylab = "Кількість", main = "Загальна собівартість",
         cex.lab=1.5, cex.axis=1.5, cex.main=2.9, cex.sub=1.5)
 axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)),
      labels = h$breaks, cex.axis=2)
@@ -482,6 +485,8 @@ axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)),
 #rm(x, h, gradient)
 ```
 
+
+???
 ```{r}
 # --------------------
 
@@ -517,6 +522,8 @@ axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), labels
 # rm(x, h, gradient)
 
 ```
+
+
 Перевірка гіпотез щодо відсоткових розподілів (як матсподівань для розподілів Бернуллі) за расою, статтю та віковою групою у вибірці в лікарнях відносно відсотків у популяції штату на момент спостереження.
 ```{r}
 options(digits = 10)
@@ -573,6 +580,7 @@ test_fraction_hyp("Age.Group", "70 or Older", 0.10062, 0.05)
 
 ```
 
+
 Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для чоловіків та жінок.
 ```{r}
 alpha <- 0.05
@@ -614,6 +622,7 @@ result <- paste("-------------------------",
   
 cat(result)
 ```
+
 
 Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для представників різних рас попарно.
 ```{r}
@@ -659,6 +668,7 @@ for (i in 1:nrow(rac)) {
     cat(result)
 }
 ```
+
 
 Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для представників різних вікових груп попарно між собою.
 ```{r}
@@ -744,19 +754,66 @@ for (i in 1:nrow(rac)) {
 ```
 
 
+Кореляції
+```{r}
+names <- c("Age.Group", "Total.Charges", "APR.Risk.of.Mortality",
+                    "Length.of.Stay", "APR.Severity.of.Illness.Code")
+df_subset <- df[, names]
+
+df_subset$Age.Group <- as.numeric(as.factor(df_subset$Age.Group))
+df_subset <- df_subset %>%
+  mutate(APR.Risk.of.Mortality = recode(APR.Risk.of.Mortality, 
+                                        "Minor" = 1, 
+                                        "Moderate" = 2,
+                                        "Major" = 3,
+                                        "Extreme" = 4))
+ggcorr(df_subset, label = TRUE)
+
+for (i in 1:(length(names)-1)) {
+  element_1 <- names[i]
+  for (j in i:(length(names)-1)) {
+    element_2 <- names[j+1]
+    print(paste(element_1, element_2))
+
+    data <- data.frame(x=df_subset[[element_1]], y=df_subset[[element_2]])
+
+    correlation_function <- function(data, indices, estimate_var = TRUE){
+     sample_data <- data[indices, ]
+     cor_value <- cor(sample_data$x, sample_data$y, method = "pearson")
+
+      if (estimate_var){
+       boot_out <- boot(data[indices, ], statistic = correlation_function,
+                          R = 10, estimate_var = FALSE)
+       return(c(cor_value, var(boot_out$t[, 1])))
+     }
+     else {
+       return(cor_value)
+     }
+    }
+
+    set.seed(42)
+    bootstrap_results <- boot(data, statistic = correlation_function, R = 10)
+    print(bootstrap_results)
+    normal <- boot.ci(bootstrap_results, type = "norm")
+    basic <- boot.ci(bootstrap_results, type = "basic")
+    percentile <- boot.ci(bootstrap_results, type = "perc")
+
+    stud <- boot.ci(bootstrap_results, index=c(1,2), type = "stud")
+
+    print("Normal confidence interval:")
+    print(normal)
+    print("Basic confidence interval:")
+    print(basic)
+    print("Percentile confidence interval:")
+    print(percentile)
+    print("Studentized confidence interval:")
+    print(stud)
+
+  }
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+cor_matrix <- cor(df_subset)
+```
 
 
