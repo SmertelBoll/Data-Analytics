@@ -517,6 +517,246 @@ axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), labels
 # rm(x, h, gradient)
 
 ```
+Перевірка гіпотез щодо відсоткових розподілів за расою, статтю та віковою групою у вибірці в лікарнях відносно відсотків у популяції штату на момент спостереження.
+```{r}
+options(digits = 10)
+test_fraction_hyp <- function (column, fraction_name, equals_to, alpha) {
+  n <- nrow(df)
+  n_fraction <- nrow(df %>% filter(get({{column}}) == fraction_name))
+  p_hat <- n_fraction/n
+
+  var_hat_p_hat <- p_hat*(1-p_hat)/n
+  se_hat <- sqrt(var_hat_p_hat)
+  
+  T = (p_hat - equals_to)/se_hat
+  p_value <- 2*pnorm(-abs(T), sd=1)
+  conclusion <- character()
+  
+  if (abs(T) > qnorm(1-alpha/2, mean=0, sd=1)) {
+    conclusion <- "H0 hypothesys should be rejected."
+  } else {
+    conclusion <- "We have no proofs for rejecting H0 hypothesys."
+  }
+  
+  conf.int <- c(p_hat - qnorm(1-alpha/2, mean=0, sd=1)*se_hat, p_hat + qnorm(1-alpha/2, mean=0, sd=1)*se_hat)
+  result <- paste("-------------------------",
+                  sprintf("\nWald test\n"),
+                  sprintf("For probability of %s from column %s", fraction_name, column),
+                  conclusion,
+                  sprintf("Estimated probability: %f", p_hat),
+                  sprintf("Probability to compare to: %f", equals_to),
+                  sprintf("Confidence interval for this test: (%f, %f)", conf.int[1], conf.int[2]),
+                  sprintf("Estimated std: %f", se_hat),
+                  sprintf("T for this test: %f", T),
+                  sprintf("P value for this test: %f", p_value),
+                  "-------------------------", sep='\n')
+  
+  cat(result)
+  return(invisible(NULL))
+}
+
+
+test_fraction_hyp("Gender", "F", 0.51447, 0.05)
+test_fraction_hyp("Gender", "M", 0.48553, 0.05)
+cat('\n\n')
+test_fraction_hyp("Race", "White", 0.703, 0.05)
+test_fraction_hyp("Race", "Black/African American", 0.176, 0.05)
+test_fraction_hyp("Race", "Other Race", 0.097, 0.05)
+test_fraction_hyp("Race", "Multi-racial", 0.024, 0.05)
+cat('\n\n')
+test_fraction_hyp("Age.Group", "0 to 17", 0.21271, 0.05)
+test_fraction_hyp("Age.Group", "18 to 29", 0.17376, 0.05)
+test_fraction_hyp("Age.Group", "30 to 49", 0.26336, 0.05)
+test_fraction_hyp("Age.Group", "50 to 69", 0.24955, 0.05)
+test_fraction_hyp("Age.Group", "70 or Older", 0.10062, 0.05)
+
+
+```
+
+Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для чоловіків та жінок.
+```{r}
+alpha <- 0.05
+n <- nrow(df)
+estimates <-  df %>% group_by(Gender) %>% summarise(mean_value = mean(Length.of.Stay),
+                                      var_value = var (Length.of.Stay)/n)
+
+
+mean_female <- estimates %>% filter(Gender == "F") %>% pull(mean_value)
+mean_male <- estimates %>% filter(Gender == "M") %>% pull(mean_value)
+
+var_female <- estimates %>% filter(Gender == "F") %>% pull(var_value)
+var_male <- estimates %>% filter(Gender == "M") %>% pull(var_value)
+
+mean_hat <- mean_male - mean_female
+se_hat <- sqrt(var_male + var_female)
+
+T <- mean_hat/se_hat
+p_value <- pnorm(T, lower.tail = FALSE)
+
+if (T > qnorm(1-alpha, mean=0, sd=1)) {
+    conclusion <- "H0 hypothesys should be rejected."
+} else {
+    conclusion <- "We have no proofs for rejecting H0 hypothesys."
+}
+  
+conf.int <- c(mean_male - mean_female - qnorm(1-alpha)*se_hat, Inf)
+
+result <- paste("-------------------------",
+                  sprintf("\nWald test\n"),
+                  sprintf("Compare mean_length_male - mean_length_female to zero."),
+                  conclusion,
+                  sprintf("Estimated mean difference: %f", mean_hat),
+                  sprintf("Confidence interval for this test: (%f, %f)", conf.int[1], conf.int[2]),
+                  sprintf("Estimated std: %f", se_hat),
+                  sprintf("T for this test: %f", T),
+                  sprintf("P value for this test: %f", p_value),
+                  "-------------------------", sep='\n')
+  
+cat(result)
+```
+
+Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для представників різних рас попарно.
+```{r}
+alpha <- 0.05
+n <- nrow(df)
+estimates <-  df %>% group_by(Race) %>% summarise(mean_value = mean(Length.of.Stay),
+                                      var_value = var (Length.of.Stay)/n)
+races <- unique(df$Race)
+rac <- t(combn(races, 2))
+for (i in 1:nrow(rac)) {
+    race1 <- rac[i, 1]
+    race2 <- rac[i, 2]
+    mean_one <- estimates %>% filter(Race == race1) %>% pull(mean_value)
+    mean_two <- estimates %>% filter(Race == race2) %>% pull(mean_value)
+    
+    var_one <- estimates %>% filter(Race == race1) %>% pull(var_value)
+    var_two <- estimates %>% filter(Race == race2) %>% pull(var_value)
+    
+    mean_hat <- mean_one - mean_two
+    se_hat <- sqrt(var_one + var_two)
+    
+    T <- mean_hat/se_hat
+    p_value <- 2*pnorm(-abs(T))
+    
+    if (abs(T) > qnorm(1-alpha/2, mean=0, sd=1)) {
+        conclusion <- "H0 hypothesys should be rejected."
+    } else {
+        conclusion <- "We have no proofs for rejecting H0 hypothesys."
+    }
+      
+    conf.int <- c(mean_hat - qnorm(1-alpha/2, mean=0, sd=1)*se_hat, mean_hat + qnorm(1-alpha/2, mean=0, sd=1)*se_hat)
+    
+    result <- paste("-------------------------",
+                    sprintf("\nWald test\n"),
+                    sprintf("Compare %s and %s.", race1, race2),
+                    conclusion,
+                    sprintf("Estimated mean difference: %f", mean_hat),
+                    sprintf("Confidence interval for this test: (%f, %f)", conf.int[1], conf.int[2]),
+                    sprintf("Estimated std: %f", se_hat),
+                    sprintf("T for this test: %f", T),
+                    sprintf("P value for this test: %f", p_value),
+                    "-------------------------", sep='\n')
+    cat(result)
+}
+```
+
+Гіпотези щодо рівностей вибіркових середніх для тривалості перебування у лікарні для представників різних вікових груп попарно між собою.
+```{r}
+alpha <- 0.05
+n <- nrow(df)
+estimates <-  df %>% group_by(Age.Group) %>% summarise(mean_value = mean(Length.of.Stay),
+                                      var_value = var (Length.of.Stay)/n)
+races <- unique(df$Age.Group)
+rac <- t(combn(races, 2))
+for (i in 1:nrow(rac)) {
+    race1 <- rac[i, 1]
+    race2 <- rac[i, 2]
+    mean_one <- estimates %>% filter(Age.Group == race1) %>% pull(mean_value)
+    mean_two <- estimates %>% filter(Age.Group == race2) %>% pull(mean_value)
+    
+    var_one <- estimates %>% filter(Age.Group == race1) %>% pull(var_value)
+    var_two <- estimates %>% filter(Age.Group == race2) %>% pull(var_value)
+    
+    mean_hat <- mean_one - mean_two
+    se_hat <- sqrt(var_one + var_two)
+    
+    T <- mean_hat/se_hat
+    p_value <- 2*pnorm(-abs(T))
+    
+    if (abs(T) > qnorm(1-alpha/2, mean=0, sd=1)) {
+        conclusion <- "H0 hypothesys should be rejected."
+    } else {
+        conclusion <- "We have no proofs for rejecting H0 hypothesys."
+    }
+      
+    conf.int <- c(mean_hat - qnorm(1-alpha/2, mean=0, sd=1)*se_hat, mean_hat + qnorm(1-alpha/2, mean=0, sd=1)*se_hat)
+    
+    result <- paste("-------------------------",
+                    sprintf("\nWald test\n"),
+                    sprintf("Compare %s and %s.", race1, race2),
+                    conclusion,
+                    sprintf("Estimated mean difference: %f", mean_hat),
+                    sprintf("Confidence interval for this test: (%f, %f)", conf.int[1], conf.int[2]),
+                    sprintf("Estimated std: %f", se_hat),
+                    sprintf("T for this test: %f", T),
+                    sprintf("P value for this test: %f", p_value),
+                    "-------------------------", sep='\n')
+    cat(result)
+}
+```
+
+
+Перевірка рівностей розподілів для різних важкостей захворювань по вікових групах для різних статей.
+```{r}
+for (age in unique(df$Age.Group)) {
+
+    men <- df %>% filter(Age.Group == age, Gender == "M") %>% group_by(APR.Risk.of.Mortality) %>% summarise(male_total_count=n())
+    woman <- df %>% filter(Age.Group == age, Gender == "F") %>% group_by(APR.Risk.of.Mortality) %>% summarise(female_total_count=n())
+
+    cat('For age', age)
+    cat("\nCounts are:\n")
+    print(cbind(male_count = men$male_total_count, female_count = woman$female_total_count))
+    result <- chisq.test(cbind(men$male_total_count, y=woman$female_total_count), simulate.p.value=TRUE)
+    print(result)
+}
+```
+
+
+Перевірка рівностей розподілів для різних важкостей захворювань по расових групах.
+```{r}
+
+races <- unique(df$Race)
+rac <- t(combn(races, 2))
+for (i in 1:nrow(rac)) {
+    race1 <- rac[i, 1]
+    race2 <- rac[i, 2]
+  #  print(race2)
+    df_one <- df %>% filter(Race == race1) %>% group_by(APR.Risk.of.Mortality) %>% summarise(one_total_count=n())
+    df_two <- df %>% filter(Race == race2) %>% group_by(APR.Risk.of.Mortality) %>% summarise(two_total_count=n())
+    frame <- cbind(race1 = df_one$one_total_count, race2 = df_two$two_total_count)
+    cat("------------------------\n")
+    cat(sprintf("Comparing %s with %s", race1, race2))
+    cat("\nCounts are:\n")
+    print(frame)
+    result <- chisq.test(frame)
+    print(result)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
