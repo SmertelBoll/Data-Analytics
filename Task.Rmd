@@ -523,6 +523,226 @@ axis(side = 1, at = seq(from = 0.1, by = 1.2, length = length(h$breaks)), labels
 
 ```
 
+Довірчій інтервал для довжини перебування
+```{r}
+data <- df$Length.of.Stay
+
+# Розрахунок середнього значення і стандартного відхилення
+mean_value <- mean(data)
+sd_value <- sd(data)
+
+# Розмір вибірки
+n <- length(data)
+
+# Рівень довіри (від 0 до 1)
+confidence_level <- 0.95
+
+# Обчислення стандартної помилки
+se <- sd_value / sqrt(n)
+
+# Обчислення критичного значення t
+t_value <- qt((1 + confidence_level) / 2, df = n - 1)
+
+# Обчислення довірчого інтервалу
+lower_bound <- mean_value - t_value * se
+upper_bound <- mean_value + t_value * se
+
+# Виведення результатів
+cat("Довірчий інтервал:", "\n")
+cat("Середнє значення:", mean_value, "\n")
+cat("Стандартнє відхилення:", sd_value, "\n")
+cat("Нижня межа:", lower_bound, "\n")
+cat("Верхня межа:", upper_bound)
+```
+
+Довірчій інтервал для ціни
+```{r}
+data <- df$Total.Charges
+
+# Розрахунок середнього значення і стандартного відхилення
+mean_value <- mean(data)
+sd_value <- sd(data)
+
+# Розмір вибірки
+n <- length(data)
+
+# Рівень довіри (від 0 до 1)
+confidence_level <- 0.95
+
+# Обчислення стандартної помилки
+se <- sd_value / sqrt(n)
+
+# Обчислення критичного значення t
+t_value <- qt((1 + confidence_level) / 2, df = n - 1)
+
+# Обчислення довірчого інтервалу
+lower_bound <- mean_value - t_value * se
+upper_bound <- mean_value + t_value * se
+
+# Виведення результатів
+cat("Довірчий інтервал:", "\n")
+cat("Середнє значення:", mean_value, "\n")
+cat("Стандартнє відхилення:", sd_value, "\n")
+cat("Нижня межа:", lower_bound, "\n")
+cat("Верхня межа:", upper_bound)
+```
+
+Довірчій інтервал для собівартості
+```{r}
+data <- df$Total.Costs
+
+# Розрахунок середнього значення і стандартного відхилення
+mean_value <- mean(data)
+sd_value <- sd(data)
+
+# Розмір вибірки
+n <- length(data)
+
+# Рівень довіри (від 0 до 1)
+confidence_level <- 0.95
+
+# Обчислення стандартної помилки
+se <- sd_value / sqrt(n)
+
+# Обчислення критичного значення t
+t_value <- qt((1 + confidence_level) / 2, df = n - 1)
+
+# Обчислення довірчого інтервалу
+lower_bound <- mean_value - t_value * se
+upper_bound <- mean_value + t_value * se
+
+# Виведення результатів
+cat("Довірчий інтервал:", "\n")
+cat("Середнє значення:", mean_value, "\n")
+cat("Стандартнє відхилення:", sd_value, "\n")
+cat("Нижня межа:", lower_bound, "\n")
+cat("Верхня межа:", upper_bound)
+```
+Довірчій інтервал для ваги при народженні
+```{r}
+data <- df$Birth.Weight
+
+# Calculation of mean value and standard deviation, ignoring NA
+mean_value <- mean(data, na.rm = TRUE)
+sd_value <- sd(data, na.rm = TRUE)
+
+# Sample size
+n <- sum(!is.na(data))
+
+# Confidence level (from 0 to 1)
+confidence_level <- 0.95
+
+# Calculation of standard error
+se <- sd_value / sqrt(n)
+
+# Calculation of the t critical value
+t_value <- qt((1 + confidence_level) / 2, df = n - 1)
+
+# Calculation of the confidence interval
+lower_bound <- mean_value - t_value * se
+upper_bound <- mean_value + t_value * se
+
+# Outputting the results
+cat("Довірчий інтервал:", "\n")
+cat("Середнє значення:", mean_value, "\n")
+cat("Стандартнє відхилення:", sd_value, "\n")
+cat("Нижня межа:", lower_bound, "\n")
+cat("Верхня межа:", upper_bound)
+```
+
+Довірчий інтервал для довжини перебування (бутстреп)
+```{r}
+# mean_func <- function(data, index) {
+#   trimmed_data <- data[index]
+#   # Set the proportion to trim from both ends
+#   trim_proportion <- 0.05
+#   n_to_trim <- round(length(trimmed_data) * trim_proportion)
+#   
+#   # Sort the data in ascending order
+#   sorted_data <- sort(trimmed_data)
+#   
+#   # Trim the extreme values
+#   trimmed_data <- sorted_data[(n_to_trim + 1):(length(sorted_data) - n_to_trim)]
+#   
+#   mean(trimmed_data)
+# }
+mean_func <- function(data, index) {
+  mean(data[index])
+}
+
+# Set the number of bootstrap iterations
+n_iterations <- 100
+
+# Randomly sample a subset of the data
+subset_data <- sample(df$Length.of.Stay, size = 1000000, replace = FALSE)
+
+# Perform the bootstrap resampling on the subset_data
+boot_obj <- boot(data = subset_data, statistic = mean_func, R = n_iterations)
+
+# Compute the bootstrap confidence interval
+boot_ci <- boot.ci(boot_obj, type = "basic")
+print(boot_ci)
+```
+
+Довірчий інтервал для ціни (бутстреп)
+```{r}
+mean_func <- function(data, index) {
+  mean(data[index])
+}
+
+# Set the number of bootstrap iterations
+n_iterations <- 100
+
+# Randomly sample a subset of the data
+subset_data <- sample(df$Total.Charges, size = 1000000, replace = FALSE)
+
+# Perform the bootstrap resampling on the subset_data
+boot_obj <- boot(data = subset_data, statistic = mean_func, R = n_iterations)
+
+# Compute the bootstrap confidence interval
+boot_ci <- boot.ci(boot_obj, type = "basic")
+print(boot_ci)
+```
+
+Довірчий інтервал для собівартості (бутстреп)
+```{r}
+mean_func <- function(data, index) {
+  mean(data[index])
+}
+
+# Set the number of bootstrap iterations
+n_iterations <- 100
+
+# Randomly sample a subset of the data
+subset_data <- sample(df$Total.Costs, size = 1000000, replace = FALSE)
+
+# Perform the bootstrap resampling on the subset_data
+boot_obj <- boot(data = subset_data, statistic = mean_func, R = n_iterations)
+
+# Compute the bootstrap confidence interval
+boot_ci <- boot.ci(boot_obj, type = "basic")
+print(boot_ci)
+```
+
+Довірчий інтервал для ваги при народженні (бутстреп)
+```{r}
+mean_func <- function(data, index) {
+  mean(data[index])
+}
+
+# Set the number of bootstrap iterations
+n_iterations <- 100
+
+# Exclude NA values from the data
+subset_data <- df$Birth.Weight[!is.na(df$Birth.Weight)]
+
+# Perform the bootstrap resampling on the subset_data
+boot_obj <- boot(data = subset_data, statistic = mean_func, R = n_iterations)
+
+# Compute the bootstrap confidence interval
+boot_ci <- boot.ci(boot_obj, type = "basic")
+print(boot_ci)
+```
 
 Перевірка гіпотез щодо відсоткових розподілів (як матсподівань для розподілів Бернуллі) за расою, статтю та віковою групою у вибірці в лікарнях відносно відсотків у популяції штату на момент спостереження.
 ```{r}
