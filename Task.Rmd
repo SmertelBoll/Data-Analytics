@@ -711,6 +711,56 @@ print(boot_ci)
 
 ```
 
+Довірчі інтервали для квантилів 
+```{r}
+# data <- df$Length.of.Stay
+# data <- df$Total.Charges
+# data <- df$Total.Costs
+
+# Рівень довіри (наприклад, 95%)
+confidence_level <- 0.95
+
+# Кількість спостережень
+n <- nrow(df)
+
+# Дані для обчислення довірчого інтервалу
+data <- na.omit(df$Birth.Weight)
+
+# Обчислення 1-го квантилю
+quantile_value <- quantile(data, probs = 0.75)
+
+# Стандартна помилка оцінки 1-го квантилю
+standard_error <- sd(data) / sqrt(n)
+
+# Критичне значення t для потрібного рівня довіри
+t_critical <- qt((1 + confidence_level) / 2, df = n - 1)
+
+# Обчислення довірчого інтервалу для 1-го квантилю
+lower_bound <- quantile_value - t_critical * standard_error
+upper_bound <- quantile_value + t_critical * standard_error
+
+# Обчислення дисперсії квантилю через бутстреп
+num_bootstraps <- 100
+bootstrap_variances <- numeric(num_bootstraps)
+
+for (i in 1:num_bootstraps) {
+  bootstrap_sample <- sample(data, replace = TRUE)
+  bootstrap_quantile <- quantile(bootstrap_sample, probs = 0.75)
+  bootstrap_variance <- var(bootstrap_sample)
+  bootstrap_variances[i] <- bootstrap_variance
+}
+
+bootstrap_variance_estimate <- mean(bootstrap_variances)
+
+# Виведення результатів
+cat("Довірчий інтервал для 3-го квантилю колонки 'Birth.Weight' (", confidence_level * 100, "%): [", lower_bound, ",", upper_bound, "]\n")
+cat("Оцінка дисперсії квантилю через бутстреп: ", bootstrap_variance_estimate)
+# Обчислення точної дисперсії
+variance <- var(data)
+cat("\nТочна дисперсія колонки 'Birth.Weight': ", variance)
+
+```
+
 
 
 Перевірка гіпотез щодо відсоткових розподілів (як матсподівань для розподілів Бернуллі) за расою, статтю та віковою групою у вибірці в лікарнях відносно відсотків у популяції штату на момент спостереження.
