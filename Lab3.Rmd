@@ -1,0 +1,164 @@
+
+Завантажуємо бібліотеки (розкоментувати тільки при першому запуску)
+```{r}
+# install.packages("dplyr") # для оператора %>%
+# install.packages("tidyr") # для drop_na
+# install.packages("ggplot2") # для візуалізації
+# install.packages("cowplot") # для об'єднання графіків в один
+# install.packages("reshape2") # для форматування таблиць
+# install.packages("GGally") # каралелограма
+# install.packages("stargazer")
+# install.packages("lmtest")
+# install.packages("car")
+```
+
+Підключаємо бібліотеки
+```{r}
+library(dplyr)
+library(tidyr) 
+library(ggplot2)
+library(cowplot)
+library(reshape2)
+library(GGally)
+library(boot)
+library(stargazer)
+library(lmtest)
+library(car)
+```
+
+Загальні налаштування
+```{r}
+# Тема для графіків
+theme_set(theme_minimal())
+
+label_size = 15     # axis labels
+subTitle_size = 20  # subtitle and axis title
+title_size = 25     # main title
+
+```
+
+
+Завантажимо наш датасет
+```{r}
+hos_df = read.csv('Hospital_Inpatient_Discharges__SPARCS_De-Identified___2015.csv', 
+                  na.strings = c("", "Na", "NA", "NULL", "Nan"))
+# na.string() замінює рядкове 'пусте' значення на Na значеня у мові R
+print('Датасет успішно завантажено')
+```
+
+
+Перевіримо назви і типи даних колонок нашого датасету
+```{r}
+str(hos_df, give.attr = FALSE)
+```
+
+
+Переглянемо перші 5 записів нашого датасету
+```{r}
+head(hos_df, 5)
+```
+
+
+Переглянемо останні 5 записів нашого датасету
+```{r}
+tail(hos_df, 5)
+```
+
+
+Перевіримо унікальні значеня першого стовпця
+(Очікуємо побачити Na, це буде означати, що заміна відбулась коректно)
+```{r}
+unique(hos_df$Health.Service.Area)
+```
+
+
+Перевіримо, скільки Na значень у кожного стовпця
+```{r}
+sapply(hos_df, function(x) sum(is.na(x)))
+```
+
+Як бачимо, Na значень багато
+Переглянемо назви колонок (Копіював для вставки у код для видалення колонок)
+```{r}
+colnames(hos_df)
+```
+
+
+Видалимо 'Номер ліцензії іншого постачальника', оскільки майже 2/3 цих рядків мають значення Na.
+Також видалимо інші стовпці зі значною кількістю Na, оскільки з них буде важко отримати значення
+```{r}
+df = hos_df[,!names(hos_df) %in% c('Other.Provider.License.Number',
+                                   'Payment.Typology.2',
+                                   'Payment.Typology.3',
+                                   'Operating.Provider.License.Number')]
+```
+
+
+Але в нас ще лишились Na значення у таких колонках: Health.Service.Area = 2911 Na
+                                                    Hospital.County = 2911 Na
+                                                    Operating.Certificate.Number = 2911 Na
+                                                    Facility.Id = 2911 Na
+                                                    Zip.Code...3.digits = 4427 Na
+                                                    APR.Severity.of.Illness.Description = 112 Na
+                                                    APR.Risk.of.Mortality = 112 Na
+                                                    Attending.Provider.License.Number = 2911 Na
+                                                     
+Оскільки кількість Na значень відносно невелика, то ми можемо їх видалити
+```{r}
+df <- df %>% drop_na()
+```
+
+
+Перевіримо скільки наш датасет містить у собі Na значень
+(Очікуємо 0)
+```{r}
+sum(is.na(df))
+```
+
+
+Перевіримо кількість пацієнтів з невизначеною статю
+```{r}
+countGender <- df %>% group_by(Gender) %>% count()
+print(countGender[countGender$Gender=='U',])
+rm(countGender)
+```
+
+
+Оскільки таких рядків всього 39, можемо видалити їх
+```{r}
+df <- df[!df$Gender=="U",]
+```
+
+
+Приведення до numeric колокти Length.of.Stay , Total.Charges , Total.Costs
+```{r}
+
+# Якщо пацієнт лежав в лікарні більше 120 днів, запишемо їх значення перебування як 121
+df["Length.of.Stay"][df["Length.of.Stay"] == "120 +"] <- "121"
+df <- transform(df, Length.of.Stay = as.numeric(Length.of.Stay))
+
+# Перетворюємо ціну у числовий формат
+df$Total.Charges <- as.numeric(gsub("\\$", "", df$Total.Charges))
+df$Total.Costs <- as.numeric(gsub("\\$", "", df$Total.Costs))
+
+```
+
+Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
+
+```{r}
+df$Birth.Weight <- ifelse(df$Birth.Weight == 0, NA, df$Birth.Weight)
+```
+
+
+
+Переглянемо детальніше інформацію про колонки
+```{r}
+summary(df)
+```
+
+
+Знову переглянемо характеристики вже очищеного датасету
+```{r}
+str(df, give.attr = FALSE)
+```
+
