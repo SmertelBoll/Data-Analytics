@@ -10,6 +10,8 @@
 # install.packages("stargazer")
 # install.packages("lmtest")
 # install.packages("car")
+# install.packages("Hmisc")
+# install.packages("ggcorrplot")
 ```
 
 Підключаємо бібліотеки
@@ -24,6 +26,8 @@ library(boot)
 library(stargazer)
 library(lmtest)
 library(car)
+library(Hmisc)
+library(ggcorrplot)
 ```
 
 Загальні налаштування
@@ -53,18 +57,6 @@ str(hos_df, give.attr = FALSE)
 ```
 
 
-Переглянемо перші 5 записів нашого датасету
-```{r}
-head(hos_df, 5)
-```
-
-
-Переглянемо останні 5 записів нашого датасету
-```{r}
-tail(hos_df, 5)
-```
-
-
 Перевіримо унікальні значеня першого стовпця
 (Очікуємо побачити Na, це буде означати, що заміна відбулась коректно)
 ```{r}
@@ -76,6 +68,7 @@ unique(hos_df$Health.Service.Area)
 ```{r}
 sapply(hos_df, function(x) sum(is.na(x)))
 ```
+
 
 Як бачимо, Na значень багато
 Переглянемо назви колонок (Копіював для вставки у код для видалення колонок)
@@ -143,13 +136,11 @@ df$Total.Costs <- as.numeric(gsub("\\$", "", df$Total.Costs))
 
 ```
 
-Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
 
+Для адекватного розрахунку характеристик колонки Birth.Weight замінимо значення 0 на NA. Ці значення не видалятимемо, бо вони є абсолютно адекватними для випадків, що не є пологами.
 ```{r}
 df$Birth.Weight <- ifelse(df$Birth.Weight == 0, NA, df$Birth.Weight)
 ```
-
-
 
 Переглянемо детальніше інформацію про колонки
 ```{r}
@@ -161,4 +152,177 @@ summary(df)
 ```{r}
 str(df, give.attr = FALSE)
 ```
+
+
+Регресійна модель (перейменувати)
+```{r}
+df_lab3 <- df %>%
+  mutate(APR.Risk.of.Mortality = dplyr::recode(APR.Risk.of.Mortality, 
+                                              "Minor" = 1, 
+                                              "Moderate" = 2,
+                                              "Major" = 3,
+                                              "Extreme" = 4))
+
+df_lab3 <- df_lab3[c("APR.Risk.of.Mortality", "APR.Severity.of.Illness.Code",
+                     "Length.of.Stay", "Age.Group", "Race", "Gender",
+                     "Total.Charges")]
+
+df_lab3 <- df_lab3 %>%
+  mutate(is.Female = dplyr::recode(Gender, "M" = 0, "F" = 1))
+
+df_lab3$Total.Charges.log <- log(df_lab3$Total.Charges)
+df_lab3$Lenght.of.Stay.Censor <- ifelse(df_lab3$Length.of.Stay == 121, 1, 0)
+
+df_lab3 <- df_lab3 %>%
+  mutate(Age.Group.0.17 = ifelse(Age.Group == "0 to 17", 1, 0),
+         Age.Group.18.29 = ifelse(Age.Group == "18 to 29", 1, 0),
+         Age.Group.30.49 = ifelse(Age.Group == "30 to 49", 1, 0),
+         Age.Group.50.69 = ifelse(Age.Group == "50 to 69", 1, 0),
+         Age.Group.70 = ifelse(Age.Group == "70 or Older", 1, 0))
+
+df_lab3 <- df_lab3 %>%
+  mutate(Race.Black = ifelse(Race == "Black/African American", 1, 0),
+         Race.Multi = ifelse(Race == "Multi-racial", 1, 0),
+         Race.Other = ifelse(Race == "Other Race", 1, 0),
+         Race.White = ifelse(Race == "White", 1, 0))
+
+```
+
+
+```{r}
+# Розділення колонки на 20 інтервалів
+intervals <- cut(df_lab3$Total.Charges, breaks = 50)
+
+# Підрахунок кількості входжень в кожен інтервал
+counts <- table(intervals)
+
+# Побудова гістограми з кількістю входжень
+barplot(counts, main = "Гістограма", xlab = "Ціна", ylab = "Кількість")
+```
+
+
+```{r}
+# Побудова лінійної регресійної моделі
+model <- lm(Total.Charges ~ Length.of.Stay, data = df_lab3)
+
+model_hc1 <- coeftest(model, vcov. = hccm(model, type = "hc1"))
+
+# stargazer(model_hc1, type = "text", digits = 3)
+summary(model)
+```
+
+
+
+```{r}
+model <- lm(Total.Charges ~ Length.of.Stay, data = df_lab3)
+model_hc12 <- coeftest(model, vcov. = hccm(model, type = "hc1"))
+ci <- coefci(model, vcov. = hccm(model, type = "hc1"))
+
+stargazer( model, 
+           type = "latex",
+           dep.var.caption = "",
+           se = list(model_hc12[, 2]),
+           omit.stat = c("rsq", "f", "ser"),
+           # ci = TRUE, ci.custom = list(ci),
+           no.space = TRUE,
+           font.size = "tiny", 
+           out="Базова_модель_із_стандартною_похибкою.html")
+
+stargazer( model, 
+           type = "latex",
+           dep.var.caption = "",
+           se = list(model_hc12[, 2]),
+           omit.stat = c("rsq", "f", "ser"),
+           ci = TRUE, ci.custom = list(ci),
+           no.space = TRUE,
+           font.size = "tiny", 
+           out="Базова_модель_із_довірчим_інтервалом.html")
+```
+
+
+Графіки довірчих інтревалів 
+```{r}
+# Побудова графіка з обмеженими мітками на осі X
+
+# "APR.Risk.of.Mortality", "APR.Severity.of.Illness.Code", "Length.of.Stay", "Age.Group", "Race", "Gender"
+
+# ggplot(df_lab3, aes(x = APR.Risk.of.Mortality, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+
+# ggplot(df_lab3, aes(x = APR.Severity.of.Illness.Code, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+
+# ggplot(df_lab3, aes(x = Length.of.Stay, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+
+# ggplot(df_lab3, aes(x = Age.Group, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+
+# ggplot(df_lab3, aes(x = Race, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+
+# ggplot(df_lab3, aes(x = Gender, y = Total.Charges)) +
+# stat_summary(fun = "mean", geom = "point", color = "blue", size = 3) +
+# stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", color = "red", width = 0.2)
+
+table(df_lab3$Race)
+```
+
+
+```{r}
+model_1 <- lm(Total.Charges.log ~ Length.of.Stay, data = df_lab3)
+model_1_hc1 <- coeftest(model_1, vcov. = hccm(model_1, type = "hc1"))
+ci_1 <- coefci(model_1, vcov. = hccm(model_1, type = "hc1"))
+
+model_2 <- lm(Total.Charges.log ~ Length.of.Stay + Lenght.of.Stay.Censor + 
+                is.Female, data = df_lab3)
+model_2_hc1 <- coeftest(model_2, vcov. = hccm(model_2, type = "hc1"))
+ci_2 <- coefci(model_2, vcov. = hccm(model_2, type = "hc1"))
+
+model_3 <- lm(Total.Charges.log ~ Length.of.Stay + Lenght.of.Stay.Censor + APR.Severity.of.Illness.Code + is.Female + APR.Risk.of.Mortality +
+                                  Age.Group.0.17 + Age.Group.30.49 + Age.Group.50.69 + Age.Group.70 +
+                                  Race.Black + Race.Other+ Race.White,
+            data = df_lab3)
+model_3_hc1 <- coeftest(model_3, vcov. = hccm(model_3, type = "hc1"))
+ci_3 <- coefci(model_3, vcov. = hccm(model_3, type = "hc1"))
+
+
+stargazer(model_1, model_2, model_3, type = "latex",
+          title = "Множинна регресія", label = "table:evals-reg-mult",
+          dep.var.labels = c("Середня оцінка"),
+          dep.var.caption = "",
+          se = list(model_1_hc1[, 2], model_2_hc1[, 2], model_3_hc1[, 2]),
+          omit.stat = c("rsq", "f", "ser"),
+          no.space = TRUE,
+          font.size = "tiny", 
+          out="Модель_із_контрольними_змінними.html")
+```
+
+
+
+```{r}
+ggcorr(df_lab3 %>% dplyr::select(Total.Charges.log, Length.of.Stay, APR.Severity.of.Illness.Code,
+                                 Age.Group.0.17, Age.Group.18.29, Age.Group.30.49, Age.Group.50.69, Age.Group.70,
+                                 Race.Black, Race.Multi, Race.Other, Race.White, is.Female, APR.Risk.of.Mortality), label = TRUE)
+
+```
+
+
+
+
+
+
+
+
+
 
